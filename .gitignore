@@ -7,7 +7,7 @@
 .env
 /public
 /venv
-/__pycache
+/__pycache__
 
 # testing
 /coverage
