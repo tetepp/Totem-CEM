@@ -67,7 +67,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;   /* ← centraliza o conteúdo verticalmente */
+  justify-content: center;   
   animation: fadeInUp .35s ease;
 }
 @keyframes fadeInUp {
@@ -89,11 +89,11 @@
   font-size: 0.98rem;
   line-height: 1.55;
   margin: 0 0 26px;
-  max-width: 900px;    /* ← aqui abre */
+  max-width: 900px;   
 }
 
 /* ============================================================
-   WELCOME
+   TELA PRINCIPAL
    ============================================================ */
 .tela-welcome { text-align: center; padding: 48px 44px; }
 .welcome-logo {
@@ -129,16 +129,16 @@
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   width: 100%;
-  max-width: 720px;          /* ← limita largura pra não esticar demais */
+  max-width: 720px;          
   margin-bottom: 28px;
 }
 .welcome-card {
   background: #f8fbfd;
   border: 1px solid var(--tt-border);
   border-radius: 10px;
-  padding: 14px 10px;         /* ← era 22px 12px */
+  padding: 14px 10px;         
   display: flex; flex-direction: column; align-items: center; gap: 8px;
-  font-size: 0.8rem;          /* ← era 0.9rem */
+  font-size: 0.8rem;         
   font-weight: 600; color: var(--tt-primary-dark);
   transition: all .2s ease;
 }
@@ -147,7 +147,7 @@
   box-shadow: 0 6px 16px rgba(44,95,124,.10);
 }
 .wc-icon {
-  width: 34px; height: 34px;   /* ← era 48px */
+  width: 34px; height: 34px;   
   color: var(--tt-primary);
   display: flex; align-items: center; justify-content: center;
 }
@@ -456,6 +456,75 @@
   border-radius: 20px;
   display: inline-block;
   font-weight: 500;
+}
+
+.verificacao-card {
+  background: #fff;
+  border: 1px solid #e3e8ef;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.vc-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.vc-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #166534;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vc-badge svg { width: 18px; height: 18px; }
+
+.vc-header strong { font-size: 1rem; color: #0f172a; }
+
+.verificacao-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.verificacao-card li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: .9rem;
+  border-bottom: 1px dashed #eef2f7;
+}
+.verificacao-card li:last-child { border-bottom: none; }
+
+.vc-label {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.vc-valor {
+  color: #0f172a;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.verificacao-cards {
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 16px;
 }
 
 /* ============================================================

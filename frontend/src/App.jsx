@@ -3,7 +3,7 @@ import axios from 'axios'
 import './App.css'
 import logoPrefeitura from './img/logo-prefeitura.png'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
 
 /* ============================================================
    HELPERS
@@ -21,11 +21,24 @@ const formatarCPF = (v) => {
   return out;
 };
 
+const formatarData = (v) => {
+  if (!v) return '—';
+  const s = String(v).replace('Z', '');
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString('pt-BR');
+};
+
+const formatarTelefone = (num) => {
+  const n = apenasDigitos(num);
+  if (n.length === 11) return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`;
+  return num;
+};
+
 /* ============================================================
    ÍCONES
    ============================================================ */
-
-
 const IconePessoaOk = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="10" cy="8" r="3.5" />
@@ -77,19 +90,41 @@ const IconeSpinner = () => (
   </svg>
 );
 
+const IconeCasa = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 10.5 12 3l9 7.5" />
+    <path d="M5 9.5V21h14V9.5" />
+  </svg>
+);
+
+const IconeTelefone = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7 12.8 12.8 0 0 0 .7 2.8 2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4 12.8 12.8 0 0 0 2.8.7 2 2 0 0 1 1.7 2z" />
+  </svg>
+);
+
+const IconeCracha = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <circle cx="9" cy="10" r="2.5" />
+    <path d="M5 18c0-2.2 1.8-4 4-4s4 1.8 4 4" />
+    <line x1="15" y1="9" x2="19" y2="9" />
+    <line x1="15" y1="13" x2="19" y2="13" />
+  </svg>
+);
+
 /* ============================================================
-   COMPONENTE
+   COMPONENTE PRINCIPAL
    ============================================================ */
 export default function AtualizaSUS() {
   const [tela, setTela] = useState('welcome');
   const [cpf, setCpf] = useState('');
   const [nomeMae, setNomeMae] = useState('');
   const [erro, setErro] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [dados, setDados] = useState(null); // objeto único do backend
 
   const [progresso, setProgresso] = useState(0);
   const [sistemas, setSistemas] = useState({ esus: 'pendente', sisreg: 'pendente', consulfarma: 'pendente' });
-
   const [contador, setContador] = useState(14);
   const timersRef = useRef([]);
 
@@ -100,7 +135,7 @@ export default function AtualizaSUS() {
 
   const resetarTudo = () => {
     limparTimers();
-    setCpf(''); setNomeMae(''); setErro('');
+    setCpf(''); setNomeMae(''); setErro(''); setDados(null);
     setProgresso(0);
     setSistemas({ esus: 'pendente', sisreg: 'pendente', consulfarma: 'pendente' });
   };
@@ -120,7 +155,7 @@ export default function AtualizaSUS() {
     return () => clearInterval(int);
   }, [tela]);
 
-  /* -------- Handlers de teclado -------- */
+  /* -------- Teclados -------- */
   const teclarNumero = (n) => {
     if (cpf.length >= 11) return;
     setErro('');
@@ -148,7 +183,6 @@ export default function AtualizaSUS() {
     setProgresso(5);
     setSistemas({ esus: 'carregando', sisreg: 'pendente', consulfarma: 'pendente' });
 
-    // Animações visuais enquanto a API responde
     timersRef.current.push(setTimeout(() => {
       setProgresso(35);
       setSistemas({ esus: 'ok', sisreg: 'carregando', consulfarma: 'pendente' });
@@ -168,7 +202,8 @@ export default function AtualizaSUS() {
         timeout: 15000
       });
 
-      // Aguarda a animação visual terminar
+      setDados(res.data);
+
       timersRef.current.push(setTimeout(() => {
         setProgresso(100);
         setTela('verificacao');
@@ -179,6 +214,9 @@ export default function AtualizaSUS() {
       if (e.response?.status === 403) {
         setErro('Nome da mãe incorreto. Verifique e tente novamente.');
         setTela('mae');
+      } else if (e.response?.status === 404) {
+        setErro('Nenhum cadastro encontrado para este CPF.');
+        setTela('cpf');
       } else if (e.code === 'ECONNABORTED') {
         setErro('O sistema demorou para responder. Tente novamente.');
         setTela('mae');
@@ -238,7 +276,6 @@ export default function AtualizaSUS() {
             <button className="btn-primario-grande" onClick={() => setTela('cpf')}>
               Verificar meu cadastro →
             </button>
-
           </div>
         )}
 
@@ -369,34 +406,39 @@ export default function AtualizaSUS() {
         )}
 
         {/* ===================== VERIFICAÇÃO ===================== */}
-        {tela === 'verificacao' && (
+        {tela === 'verificacao' && dados && (
           <div className="tela tela-verificacao">
-            <h2 className="tela-titulo">Verifique se todos os dados abaixo estão atualizados</h2>
+            <h2 className="tela-titulo">Confirme seus dados cadastrais</h2>
             <p className="tela-sub">
-              Confirmamos seus dados nos sistemas integrados. Veja abaixo as informações recuperadas:
+              Verifique se as informações abaixo estão corretas. Caso algo esteja
+              desatualizado, você poderá solicitar a correção ao final.
             </p>
 
             <div className="verificacao-cards">
-              <VerificacaoCard
-                titulo="E-SUS"
-                itens={['Nome completo', 'CPF', 'Data de nascimento', 'Endereço', 'Cartão SUS']}
-              />
-              <VerificacaoCard
-                titulo="SISREG"
-                itens={['Nome completo', 'CPF', 'Telefone', 'Cartão SUS']}
-              />
-              <VerificacaoCard
-                titulo="Consulfarma"
-                itens={['Nome completo', 'CPF', 'Endereço', 'Telefone']}
-              />
+              <VerificacaoCard titulo="Dados pessoais" icone={<IconeCracha />} itens={[
+                { label: 'Nome completo', valor: dados.nome || '—' },
+                { label: 'CPF', valor: formatarCPF(dados.cpf) },
+                { label: 'Data de nascimento', valor: formatarData(dados.data_nascimento) },
+                { label: 'Nome da mãe', valor: dados.nome_mae || '—' },
+              ]}/>
+
+              <VerificacaoCard titulo="Endereço" icone={<IconeCasa />} itens={[
+                { label: 'Endereço completo', valor: dados.endereco_completo || 'Não informado' },
+              ]}/>
+
+              <VerificacaoCard titulo="Telefones" icone={<IconeTelefone />} itens={
+                (dados.telefones && dados.telefones.length && dados.telefones[0] !== 'Não informado')
+                  ? dados.telefones.map(t => ({ label: 'Telefone', valor: formatarTelefone(t) }))
+                  : [{ label: 'Telefone', valor: 'Não informado' }]
+              }/>
             </div>
 
             <div className="linha-botoes">
               <button className="btn-secundario" onClick={() => setTela('tudo-ok')}>
-                Meu cadastro já está atualizado
+                Meu cadastro está correto
               </button>
               <button className="btn-primario" onClick={() => setTela('precisa-atualizar')}>
-                Atualizar cadastro
+                Preciso atualizar
               </button>
             </div>
           </div>
@@ -470,15 +512,22 @@ function SistemaItem({ nome, status }) {
   );
 }
 
-function VerificacaoCard({ titulo, itens }) {
+function VerificacaoCard({ titulo, itens, icone }) {
   return (
     <div className="verificacao-card">
       <div className="vc-header">
-        <span className="vc-badge">✓</span>
+        <span className="vc-badge">
+          {icone || <IconeCheck />}
+        </span>
         <strong>{titulo}</strong>
       </div>
       <ul>
-        {itens.map(i => <li key={i}><span className="vc-bullet">•</span>{i}</li>)}
+        {itens.map((item, i) => (
+          <li key={i}>
+            <span className="vc-label">{item.label}</span>
+            <span className="vc-valor">{item.valor}</span>
+          </li>
+        ))}
       </ul>
     </div>
   );
