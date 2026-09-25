@@ -44,6 +44,37 @@ def normalizar(texto: str) -> str:
 def apenas_digitos(v) -> str:
     return re.sub(r"\D", "", str(v or ""))
 
+def normalizar_data_iso(data_str) -> str:
+    """
+    Converte qualquer formato de data vindo do SISREG para 'YYYY-MM-DD'.
+    Evita o bug de fuso horário no Frontend (JS subtraindo 1 dia quando
+    recebe algo como '2006-06-19T00:00:00Z').
+    """
+    if not data_str:
+        return ""
+
+    dt = str(data_str).strip()
+
+    # "2006-06-19T00:00:00Z" ou "2006-06-19T00:00:00.000Z"
+    if "T" in dt:
+        dt = dt.split("T")[0]
+    # "2006-06-19 00:00:00"
+    elif " " in dt:
+        dt = dt.split(" ")[0]
+
+    # "19/06/2006" -> "2006-06-19"
+    if "/" in dt:
+        partes = dt.split("/")
+        if len(partes) == 3:
+            a, b, c = partes[0], partes[1], partes[2]
+            # Se o primeiro bloco tem 4 dígitos, já está em YYYY/MM/DD
+            if len(a) == 4:
+                dt = f"{a[:4]}-{b.zfill(2)}-{c.zfill(2)}"
+            else:
+                dt = f"{c[:4]}-{b.zfill(2)}-{a.zfill(2)}"
+
+    return dt
+
 def montar_endereco(obj: dict) -> str:
     def g(k):
         v = obj.get(k)
@@ -70,8 +101,15 @@ def montar_endereco(obj: dict) -> str:
     return f"{rua}{num}{comp_str}{bairro_str}{cidade_uf}{cep_str}".upper()
 
 def extrair_telefones(*objetos) -> list[str]:
-    chaves = ["telefone_paciente", "telefone", "telefone_unidade_executante"]
+    """
+    Extrai telefones de múltiplos objetos.
+    CORRIGIDO: além de vírgula, ponto-e-vírgula e barra, também quebra
+    por espaço e hífen (que era o que causava o bug de "telefone colado").
+    Valida para aceitar apenas números com 10 ou 11 dígitos.
+    """
+    chaves = ["telefone_paciente", "telefone", "telefone_unidade_executante", "telefone_unificado"]
     encontrados = []
+
     for obj in objetos:
         if not obj:
             continue
@@ -79,10 +117,13 @@ def extrair_telefones(*objetos) -> list[str]:
             v = obj.get(k)
             if not v:
                 continue
-            for parte in re.split(r"[,;/]", str(v)):
+            # Split robusto: vírgula, ponto-e-vírgula, barra, espaço e hífen
+            for parte in re.split(r"[,;/\s\-]+", str(v)):
                 num = apenas_digitos(parte)
-                if num and num not in encontrados:
+                # Só aceita telefones válidos (DDD + número)
+                if num and len(num) in (10, 11) and num not in encontrados:
                     encontrados.append(num)
+
     return encontrados
 
 # ---------------- Rota principal ----------------
@@ -152,10 +193,14 @@ async def consultar_cpf(cpf: str, nome_mae: str = Query(...)):
 
     telefones = extrair_telefones(*todos_sources)
 
+    # CORRIGIDO: data no formato 'YYYY-MM-DD' (sem hora/Z), para não
+    # deslocar 1 dia no frontend por causa de fuso horário.
+    data_nasc = normalizar_data_iso(base.get("dt_nascimento_usuario"))
+
     return {
         "nome": base.get("no_usuario") or base.get("nome_usuario") or "",
         "cpf": cpf_limpo,
-        "data_nascimento": base.get("dt_nascimento_usuario") or "",
+        "data_nascimento": data_nasc,
         "nome_mae": nome_mae_banco,
         "endereco_completo": endereco or "Endereço não informado",
         "telefones": telefones or ["Não informado"],

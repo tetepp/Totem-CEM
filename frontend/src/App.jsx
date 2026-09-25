@@ -23,11 +23,23 @@ const formatarCPF = (v) => {
 
 const formatarData = (v) => {
   if (!v) return '—';
-  const s = String(v).replace('Z', '');
+
+  // Pega só a parte da data, descartando hora/T/Z se houver
+  const s = String(v).split('T')[0].split(' ')[0];
+
+  // Se já estiver no formato YYYY-MM-DD, formata na mão (sem Date)
+  const match = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) {
+    const [, ano, mes, dia] = match;
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  // Fallback para outros formatos (DD/MM/YYYY etc.)
   const d = new Date(s);
   if (isNaN(d.getTime())) return s;
   return d.toLocaleDateString('pt-BR');
 };
+
 
 const formatarTelefone = (num) => {
   const n = apenasDigitos(num);
