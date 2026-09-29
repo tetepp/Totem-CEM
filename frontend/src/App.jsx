@@ -468,10 +468,10 @@ export default function AtualizaSUS() {
             </div>
             <h2 className="tela-titulo">Atualização Necessária</h2>
             <div className="aviso-dirija">
-              DIRIJA-SE À: <strong>Sala de Atualização</strong> (Sala X - ao lado)
+              DIRIJA-SE À: <strong>Sala de Atualização</strong> (Sala X)
             </div>
             <p className="tela-sub">
-              Apresente seu CPF e um documento com foto ao atendente.
+              Apresente seu documento com foto.
             </p>
             <div className="contador-final">Retornando à tela inicial em {contador}s</div>
             <button className="btn-secundario" onClick={irParaWelcome}>Voltar ao início</button>

@@ -13,7 +13,7 @@ cd backend
 python3 -m venv venv
 
 # Ative o ambiente virtual (Linux/Mac)
-source .venv/bin/activate
+source venv/bin/activate
 # Ou (Windows)
 .venv\Scripts\activate
 
