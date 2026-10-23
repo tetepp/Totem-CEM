@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+httpx
+sqlalchemy[asyncio]>=2.0
+asyncpg>=0.29
+passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
+python-jose[cryptography]>=3.3
+python-multipart>=0.0.9
+apscheduler

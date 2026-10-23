@@ -2,6 +2,11 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from unicodedata import normalize
+from contextlib import asynccontextmanager
+
+from usuarios_routes import router as usuarios_router
+from db import init_db
+
 import os
 import re
 import asyncio
@@ -24,7 +29,19 @@ if not USUARIO or not SENHA:
 if not URL_SOLICITACOES or not URL_MARCACOES or not URL_HOSPITALAR:
     raise RuntimeError("URLs do SISREG não configuradas no .env")
 
-app = FastAPI(title="Totem CEM - Consulta SUS")
+
+# ----------------(inicialização) ----------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Cria as tabelas do banco (usuarios, logs, etc.) se não existirem
+    await init_db()
+    print("[BOOT] Banco de dados inicializado.")
+    yield
+    print("[SHUTDOWN] Encerrando aplicação.")
+
+
+app = FastAPI(title="Totem CEM - Consulta SUS", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +50,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Registra as rotas de usuários (login, CRUD, troca de senha, logs)
+app.include_router(usuarios_router)
+
 
 # ---------------- Helpers ----------------
 
@@ -126,6 +147,7 @@ def extrair_telefones(*objetos) -> list[str]:
 
     return encontrados
 
+
 # ---------------- Rota principal ----------------
 
 @app.get("/api/consulta/{cpf}")
@@ -193,7 +215,7 @@ async def consultar_cpf(cpf: str, nome_mae: str = Query(...)):
 
     telefones = extrair_telefones(*todos_sources)
 
-    # CORRIGIDO: data no formato 'YYYY-MM-DD' (sem hora/Z), para não
+    # data no formato 'YYYY-MM-DD' (sem hora/Z), para não
     # deslocar 1 dia no frontend por causa de fuso horário.
     data_nasc = normalizar_data_iso(base.get("dt_nascimento_usuario"))
 
@@ -205,3 +227,10 @@ async def consultar_cpf(cpf: str, nome_mae: str = Query(...)):
         "endereco_completo": endereco or "Endereço não informado",
         "telefones": telefones or ["Não informado"],
     }
+
+
+# ---------------- Health check ----------------
+
+@app.get("/")
+async def raiz():
+    return {"status": "ok", "servico": "Totem CEM - Consulta SUS"}

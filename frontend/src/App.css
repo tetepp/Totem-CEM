@@ -542,3 +542,360 @@
   .totem-header { padding: 12px 18px; }
   .totem-header-data { font-size: .75rem; }
 }
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a4d8c 0%, #0d6efd 100%);
+  padding: 24px;
+}
+
+.login-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-box h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #0a4d8c;
+  text-align: center;
+}
+
+.login-sub {
+  margin: 0 0 16px 0;
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+}
+
+.login-box label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin-top: 4px;
+}
+
+.login-box input {
+  padding: 12px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.login-box input:focus { border-color: #0d6efd; }
+
+.login-box button[type="submit"] {
+  margin-top: 12px;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  background: #0d6efd;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.login-box button[type="submit"]:hover:not(:disabled) { background: #0a4d8c; }
+.login-box button[type="submit"]:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ============================================================
+   ADMIN — ESTRUTURA
+   ============================================================ */
+.admin-wrap {
+  min-height: 100vh;
+  background: #f5f7fa;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.admin-header {
+  background: #0a4d8c;
+  color: #fff;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.admin-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-header strong { font-size: 18px; }
+.admin-user { font-size: 13px; opacity: 0.85; }
+
+.admin-header .btn-secundario {
+  background: transparent;
+  border: 2px solid #fff;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.admin-header .btn-secundario:hover { background: rgba(255,255,255,0.15); }
+
+.admin-tabs {
+  background: #fff;
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  border-bottom: 2px solid #e0e0e0;
+  overflow-x: auto;
+}
+
+.admin-tabs button {
+  padding: 14px 20px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.admin-tabs button:hover { color: #0a4d8c; }
+.admin-tabs button.ativo { color: #0d6efd; border-bottom-color: #0d6efd; }
+
+.admin-body {
+  padding: 28px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-body h2 {
+  margin: 0 0 20px 0;
+  color: #0a4d8c;
+  font-size: 22px;
+}
+
+/* ============================================================
+   ADMIN — FORMULÁRIOS
+   ============================================================ */
+.admin-form {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.admin-form input,
+.admin-form select {
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s;
+  flex: 1;
+  min-width: 180px;
+}
+
+.admin-form input:focus,
+.admin-form select:focus { border-color: #0d6efd; }
+
+.admin-form button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.admin-form .btn-primario {
+  background: #0d6efd;
+  color: #fff;
+}
+
+.admin-form .btn-primario:hover { background: #0a4d8c; }
+
+.admin-form-vertical {
+  background: #fff;
+  padding: 24px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.admin-form-vertical label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin-top: 8px;
+}
+
+.admin-form-vertical label small { font-weight: 400; color: #888; }
+
+.admin-form-vertical input,
+.admin-form-vertical textarea {
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  resize: vertical;
+}
+
+.admin-form-vertical input:focus,
+.admin-form-vertical textarea:focus { border-color: #0d6efd; }
+
+.admin-form-vertical .btn-primario {
+  margin-top: 16px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #0d6efd;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.admin-form-vertical .btn-primario:hover { background: #0a4d8c; }
+
+.admin-form-vertical .btn-secundario {
+  padding: 12px 20px;
+  border: 2px solid #ccc;
+  background: #fff;
+  color: #555;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+/* ============================================================
+   ADMIN — TABELA
+   ============================================================ */
+.admin-table {
+  width: 100%;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  border-collapse: collapse;
+}
+
+.admin-table thead { background: #0a4d8c; color: #fff; }
+
+.admin-table th {
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+  color: #333;
+}
+
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: #f8f9fb; }
+
+.admin-table select {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.admin-table .btn-secundario {
+  padding: 6px 14px;
+  border: 2px solid #0d6efd;
+  background: transparent;
+  color: #0d6efd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.admin-table .btn-secundario:hover:not(:disabled) {
+  background: #0d6efd;
+  color: #fff;
+}
+
+.admin-table .btn-secundario:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   ADMIN — MSG / MODAL
+   ============================================================ */
+.admin-msg {
+  padding: 12px 16px;
+  background: #e7f5ff;
+  border-left: 4px solid #0d6efd;
+  border-radius: 6px;
+  color: #0a4d8c;
+  font-weight: 500;
+  margin: 12px 0 20px;
+}
+
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.admin-modal .admin-form-vertical {
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.admin-modal .linha-botoes {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 import logoPrefeitura from './img/logo-prefeitura.png'
+import Login from './pages/Login'
+import AdminApp from './pages/AdminApp'
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
 
@@ -23,23 +25,16 @@ const formatarCPF = (v) => {
 
 const formatarData = (v) => {
   if (!v) return '—';
-
-  // Pega só a parte da data, descartando hora/T/Z se houver
   const s = String(v).split('T')[0].split(' ')[0];
-
-  // Se já estiver no formato YYYY-MM-DD, formata na mão (sem Date)
   const match = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (match) {
     const [, ano, mes, dia] = match;
     return `${dia}/${mes}/${ano}`;
   }
-
-  // Fallback para outros formatos (DD/MM/YYYY etc.)
   const d = new Date(s);
   if (isNaN(d.getTime())) return s;
   return d.toLocaleDateString('pt-BR');
 };
-
 
 const formatarTelefone = (num) => {
   const n = apenasDigitos(num);
@@ -126,14 +121,14 @@ const IconeCracha = () => (
 );
 
 /* ============================================================
-   COMPONENTE PRINCIPAL
+   TOTEM (kiosk — tela que o cidadão usa)
    ============================================================ */
-export default function AtualizaSUS() {
+function TotemApp() {
   const [tela, setTela] = useState('welcome');
   const [cpf, setCpf] = useState('');
   const [nomeMae, setNomeMae] = useState('');
   const [erro, setErro] = useState('');
-  const [dados, setDados] = useState(null); // objeto único do backend
+  const [dados, setDados] = useState(null);
 
   const [progresso, setProgresso] = useState(0);
   const [sistemas, setSistemas] = useState({ esus: 'pendente', sisreg: 'pendente', consulfarma: 'pendente' });
@@ -154,7 +149,6 @@ export default function AtualizaSUS() {
 
   const irParaWelcome = () => { resetarTudo(); setTela('welcome'); };
 
-  /* -------- Contagem regressiva telas finais -------- */
   useEffect(() => {
     if (tela !== 'tudo-ok' && tela !== 'precisa-atualizar') return;
     setContador(14);
@@ -167,7 +161,6 @@ export default function AtualizaSUS() {
     return () => clearInterval(int);
   }, [tela]);
 
-  /* -------- Teclados -------- */
   const teclarNumero = (n) => {
     if (cpf.length >= 11) return;
     setErro('');
@@ -181,7 +174,6 @@ export default function AtualizaSUS() {
   };
   const apagarLetra = () => setNomeMae(prev => prev.slice(0, -1));
 
-  /* -------- Fluxo -------- */
   const confirmarCPF = () => {
     if (cpf.length !== 11) { setErro('Digite os 11 dígitos do CPF.'); return; }
     setErro('');
@@ -239,9 +231,6 @@ export default function AtualizaSUS() {
     }
   };
 
-  /* ============================================================
-     RENDER
-     ============================================================ */
   return (
     <div className="totem-atualiza">
       {tela !== 'welcome' && tela !== 'cpf' && tela !== 'mae' && (
@@ -490,13 +479,53 @@ export default function AtualizaSUS() {
             <button className="btn-secundario" onClick={irParaWelcome}>Voltar ao início</button>
           </div>
         )}
+        <BotaoAdmin />
       </main>
     </div>
   );
 }
 
 /* ============================================================
-   SUBCOMPONENTES
+   APP ROOT — decide entre kiosk e painel admin
+   ============================================================ */
+export default function App() {
+  const modoAdmin = new URLSearchParams(window.location.search).get('modo') === 'admin';
+
+  const [authUser, setAuthUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem('auth_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  if (modoAdmin) {
+    const temToken = !!localStorage.getItem('auth_token');
+    if (!authUser || !temToken) {
+      return (
+        <Login
+          onLogin={(data) => setAuthUser(data)}
+        />
+      );
+    }
+    return (
+      <AdminApp
+        user={authUser}
+        onLogout={() => {
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('auth_user');
+          setAuthUser(null);
+        }}
+      />
+    );
+  }
+
+  return <TotemApp />;
+}
+
+/* ============================================================
+   SUBCOMPONENTES DO TOTEM
    ============================================================ */
 function SistemaItem({ nome, status }) {
   return (
@@ -542,5 +571,53 @@ function VerificacaoCard({ titulo, itens, icone }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+function BotaoAdmin() {
+  const abrir = () => {
+    window.location.href = '/?modo=admin';
+  };
+
+  return (
+    <button
+      onClick={abrir}
+      aria-label="Acesso administrativo"
+      title=""
+      style={{
+        position: 'fixed',
+        bottom: 16,
+        right: 16,
+        width: 40,
+        height: 40,
+        border: 'none',
+        background: 'transparent',
+        color: '#999',
+        opacity: 0.15,
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100,
+        transition: 'opacity 0.2s',
+        padding: 0,
+      }}
+      onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
+      onMouseLeave={e => e.currentTarget.style.opacity = '0.15'}
+    >
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+    </button>
   );
 }
