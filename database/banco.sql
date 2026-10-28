@@ -53,7 +53,7 @@ CREATE TABLE sessoes_totem(
 
 CREATE TABLE logs(
     id BIGSERIAL PRIMARY KEY,
-    usuario_id INTEGER,
+    usuario_id INTEGER,60
     acao VARCHAR(100) NOT NULL,
     descricao TEXT,
     data_hora TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

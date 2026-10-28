@@ -23,6 +23,25 @@ const formatarCPF = (v) => {
   return out;
 };
 
+/**
+ * Mascara o CPF mostrando APENAS os 3 primeiros dígitos e os 2 últimos.
+ * Exemplo: "12345678901" -> "123.***.***-01"
+ */
+const mascararCPF = (v) => {
+  const limpo = apenasDigitos(v);
+  if (limpo.length !== 11) return formatarCPF(v);
+  return `${limpo.slice(0, 3)}.***.***-${limpo.slice(9, 11)}`;
+};
+
+const gerarCodigoAleatorio = () => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let resultado = "";
+  for (let i = 0; i < 6; i++) {
+    resultado += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return resultado;
+};
+
 const formatarData = (v) => {
   if (!v) return '—';
   const s = String(v).split('T')[0].split(' ')[0];
@@ -135,6 +154,20 @@ function TotemApp() {
   const [contador, setContador] = useState(14);
   const timersRef = useRef([]);
 
+  // ---- CAPTCHA ----
+  const [captchaGerado, setCaptchaGerado] = useState(() => gerarCodigoAleatorio());
+  const [captchaDigitado, setCaptchaDigitado] = useState('');
+
+  // ---- CAMPO ATIVO (decide qual teclado mostrar) ----
+  // 'cpf'     -> teclado numérico
+  // 'captcha' -> teclado alfanumérico
+  const [campoAtivo, setCampoAtivo] = useState('cpf');
+
+  const gerarCaptcha = () => {
+    setCaptchaGerado(gerarCodigoAleatorio());
+    setCaptchaDigitado('');
+  };
+
   const limparTimers = () => {
     timersRef.current.forEach(t => clearTimeout(t));
     timersRef.current = [];
@@ -145,6 +178,8 @@ function TotemApp() {
     setCpf(''); setNomeMae(''); setErro(''); setDados(null);
     setProgresso(0);
     setSistemas({ esus: 'pendente', sisreg: 'pendente', consulfarma: 'pendente' });
+    setCampoAtivo('cpf');
+    gerarCaptcha();
   };
 
   const irParaWelcome = () => { resetarTudo(); setTela('welcome'); };
@@ -161,6 +196,14 @@ function TotemApp() {
     return () => clearInterval(int);
   }, [tela]);
 
+  // ---- Quando CPF completa, muda automaticamente para o captcha ----
+  useEffect(() => {
+    if (cpf.length === 11) {
+      setCampoAtivo('captcha');
+    }
+  }, [cpf]);
+
+  // ---- Teclado numérico (CPF) ----
   const teclarNumero = (n) => {
     if (cpf.length >= 11) return;
     setErro('');
@@ -168,6 +211,15 @@ function TotemApp() {
   };
   const apagarNumero = () => setCpf(prev => prev.slice(0, -1));
 
+  // ---- Teclado alfanumérico (captcha) ----
+  const teclarCaptcha = (c) => {
+    if (captchaDigitado.length >= 6) return;
+    setErro('');
+    setCaptchaDigitado(prev => prev + c);
+  };
+  const apagarCaptcha = () => setCaptchaDigitado(prev => prev.slice(0, -1));
+
+  // ---- Teclado da mãe (letras) ----
   const teclarLetra = (l) => {
     setErro('');
     setNomeMae(prev => (prev + l).slice(0, 30));
@@ -176,6 +228,20 @@ function TotemApp() {
 
   const confirmarCPF = () => {
     if (cpf.length !== 11) { setErro('Digite os 11 dígitos do CPF.'); return; }
+
+    if (!captchaDigitado.trim()) {
+      setErro('Por favor, digite o código de verificação exibido.');
+      setCampoAtivo('captcha');
+      return;
+    }
+
+    if (captchaDigitado.toUpperCase() !== captchaGerado) {
+      setErro('O código digitado não confere com o exibido. Tente novamente.');
+      gerarCaptcha();
+      setCampoAtivo('captcha');
+      return;
+    }
+
     setErro('');
     setTela('mae');
   };
@@ -280,31 +346,106 @@ function TotemApp() {
           </div>
         )}
 
-        {/* ===================== CPF ===================== */}
+        {/* ===================== CPF + CAPTCHA ===================== */}
         {tela === 'cpf' && (
           <div className="tela tela-cpf">
             <div className="logo">
               <img src={logoPrefeitura} alt="Prefeitura" />
             </div>
             <h2 className="tela-titulo">Informe seu CPF</h2>
-            <p className="tela-sub">Utilize o teclado abaixo para digitar os números do seu documento.</p>
+            <p className="tela-sub">Utilize o teclado na tela para digitar os dados abaixo.</p>
 
-            <div className={`cpf-display ${cpf ? 'preenchido' : ''}`}>
+            {/* --- DISPLAY CPF (clicável: reativa teclado numérico) --- */}
+            <div
+              className={`cpf-display ${cpf ? 'preenchido' : ''} ${campoAtivo === 'cpf' ? 'campo-ativo' : ''}`}
+              onClick={() => setCampoAtivo('cpf')}
+              role="button"
+              tabIndex={0}
+              style={{ cursor: 'pointer' }}
+            >
               {cpf ? formatarCPF(cpf) : '000.000.000-00'}
             </div>
 
+            {/* --- CAPTCHA (só aparece quando CPF completo) --- */}
+            {cpf.length === 11 && (
+              <div
+                className={`captcha-totem-container ${campoAtivo === 'captcha' ? 'campo-ativo' : ''}`}
+                onClick={() => setCampoAtivo('captcha')}
+              >
+                <div className="captcha-totem-header">
+                  <span> Verificação de segurança</span>
+                </div>
+                <div className="captcha-totem-row">
+                  <div className="captcha-totem-display">{captchaGerado}</div>
+                  <button
+                    type="button"
+                    className="captcha-totem-refresh"
+                    onClick={(e) => { e.stopPropagation(); gerarCaptcha(); }}
+                    aria-label="Gerar novo código"
+                    title="Gerar novo código"
+                  >
+                    ↻
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  className="captcha-totem-input"
+                  placeholder="Digite aqui o código visualizado"
+                  value={captchaDigitado}
+                  onChange={(e) => setCaptchaDigitado(e.target.value.toUpperCase().replace(/\s/g, '').slice(0, 6))}
+                  onFocus={() => setCampoAtivo('captcha')}
+                  maxLength={6}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                />
+              </div>
+            )}
+
             {erro && <div className="totem-erro">{erro}</div>}
 
-            <div className="teclado-numerico">
-              {[1,2,3,4,5,6,7,8,9].map(n => (
-                <button key={n} className="tecla" onClick={() => teclarNumero(String(n))}>{n}</button>
-              ))}
-              <button className="tecla tecla-vazia" disabled />
-              <button className="tecla" onClick={() => teclarNumero('0')}>0</button>
-              <button className="tecla tecla-apagar" onClick={apagarNumero} aria-label="Apagar">
-                <IconeApagar />
-              </button>
-            </div>
+            {/* --- TECLADO CONDICIONAL --- */}
+            {campoAtivo === 'cpf' ? (
+              /* ===== TECLADO NUMÉRICO (CPF) ===== */
+              <div className="teclado-numerico">
+                {[1,2,3,4,5,6,7,8,9].map(n => (
+                  <button key={n} className="tecla" onClick={() => teclarNumero(String(n))}>{n}</button>
+                ))}
+                <button className="tecla tecla-vazia" disabled />
+                <button className="tecla" onClick={() => teclarNumero('0')}>0</button>
+                <button className="tecla tecla-apagar" onClick={apagarNumero} aria-label="Apagar">
+                  <IconeApagar />
+                </button>
+              </div>
+            ) : (
+              /* ===== TECLADO ALFANUMÉRICO (CAPTCHA) ===== */
+              <div className="teclado-captcha">
+                <div className="teclado-captcha-linha">
+                  {['Q','W','E','R','T','Y','U','I','O','P'].map(l => (
+                    <button key={l} className="tecla tecla-captcha" onClick={() => teclarCaptcha(l)}>{l}</button>
+                  ))}
+                </div>
+                <div className="teclado-captcha-linha">
+                  {['A','S','D','F','G','H','J','K','L','Ç'].map(l => (
+                    <button key={l} className="tecla tecla-captcha" onClick={() => teclarCaptcha(l)}>{l}</button>
+                  ))}
+                </div>
+                <div className="teclado-captcha-linha">
+                  {['Z','X','C','V','B','N','M'].map(l => (
+                    <button key={l} className="tecla tecla-captcha" onClick={() => teclarCaptcha(l)}>{l}</button>
+                  ))}
+                  <button className="tecla tecla-captcha tecla-apagar" onClick={apagarCaptcha} aria-label="Apagar">
+                    <IconeApagar />
+                  </button>
+                </div>
+                <div className="teclado-captcha-linha">
+                  {['1','2','3','4','5','6','7','8','9','0'].map(n => (
+                    <button key={n} className="tecla tecla-captcha" onClick={() => teclarCaptcha(n)}>{n}</button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
               className="btn-primario-grande"
@@ -412,13 +553,13 @@ function TotemApp() {
             <h2 className="tela-titulo">Confirme seus dados cadastrais</h2>
             <p className="tela-sub">
               Verifique se as informações abaixo estão corretas. Caso algo esteja
-              desatualizado, você poderá solicitar a correção ao final.
+              desatualizado, você pode solicitar a correção apertando o botão "Preciso atualizar".
             </p>
 
             <div className="verificacao-cards">
               <VerificacaoCard titulo="Dados pessoais" icone={<IconeCracha />} itens={[
                 { label: 'Nome completo', valor: dados.nome || '—' },
-                { label: 'CPF', valor: formatarCPF(dados.cpf) },
+                { label: 'CPF', valor: mascararCPF(dados.cpf) },
                 { label: 'Data de nascimento', valor: formatarData(dados.data_nascimento) },
                 { label: 'Nome da mãe', valor: dados.nome_mae || '—' },
               ]}/>
