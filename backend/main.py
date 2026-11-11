@@ -1,10 +1,15 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from unicodedata import normalize
 from contextlib import asynccontextmanager
+from typing import Optional
+from pydantic import BaseModel
+from sqlalchemy import select, desc
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from db import init_db
+from db import init_db, get_db
+from models import RespostaCadastro
 
 import os
 import re
@@ -12,6 +17,7 @@ import asyncio
 import httpx
 
 load_dotenv()
+from email_utils import enviar_email_atualizacao
 
 USUARIO = os.getenv("SISREG_USUARIO")
 SENHA = os.getenv("SISREG_SENHA")
@@ -33,11 +39,10 @@ if not URL_SOLICITACOES or not URL_MARCACOES or not URL_HOSPITALAR:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Cria as tabelas do banco (usuarios, logs, etc.) se não existirem
     await init_db()
-    print("[BOOT] Banco de dados inicializado.")
+    print("[BOOT] Banco de dados inicializado.", flush=True)
     yield
-    print("[SHUTDOWN] Encerrando aplicação.")
+    print("[SHUTDOWN] Encerrando aplicação.", flush=True)
 
 
 app = FastAPI(title="Totem CEM - Consulta SUS", lifespan=lifespan)
@@ -63,27 +68,22 @@ def apenas_digitos(v) -> str:
 def normalizar_data_iso(data_str) -> str:
     """
     Converte qualquer formato de data vindo do SISREG para 'YYYY-MM-DD'.
-    Evita o bug de fuso horário no Frontend (JS subtraindo 1 dia quando
-    recebe algo como '2006-06-19T00:00:00Z').
+    Evita o bug de fuso horário no Frontend.
     """
     if not data_str:
         return ""
 
     dt = str(data_str).strip()
 
-    # "2006-06-19T00:00:00Z" ou "2006-06-19T00:00:00.000Z"
     if "T" in dt:
         dt = dt.split("T")[0]
-    # "2006-06-19 00:00:00"
     elif " " in dt:
         dt = dt.split(" ")[0]
 
-    # "19/06/2006" -> "2006-06-19"
     if "/" in dt:
         partes = dt.split("/")
         if len(partes) == 3:
             a, b, c = partes[0], partes[1], partes[2]
-            # Se o primeiro bloco tem 4 dígitos, já está em YYYY/MM/DD
             if len(a) == 4:
                 dt = f"{a[:4]}-{b.zfill(2)}-{c.zfill(2)}"
             else:
@@ -117,12 +117,6 @@ def montar_endereco(obj: dict) -> str:
     return f"{rua}{num}{comp_str}{bairro_str}{cidade_uf}{cep_str}".upper()
 
 def extrair_telefones(*objetos) -> list[str]:
-    """
-    Extrai telefones de múltiplos objetos.
-    CORRIGIDO: além de vírgula, ponto-e-vírgula e barra, também quebra
-    por espaço e hífen (que era o que causava o bug de "telefone colado").
-    Valida para aceitar apenas números com 10 ou 11 dígitos.
-    """
     chaves = ["telefone_paciente", "telefone", "telefone_unidade_executante", "telefone_unificado"]
     encontrados = []
 
@@ -133,17 +127,15 @@ def extrair_telefones(*objetos) -> list[str]:
             v = obj.get(k)
             if not v:
                 continue
-            # Split robusto: vírgula, ponto-e-vírgula, barra, espaço e hífen
             for parte in re.split(r"[,;/\s\-]+", str(v)):
                 num = apenas_digitos(parte)
-                # Só aceita telefones válidos (DDD + número)
                 if num and len(num) in (10, 11) and num not in encontrados:
                     encontrados.append(num)
 
     return encontrados
 
 
-# ---------------- Rota principal ----------------
+# ---------------- Rota principal (SISREG) ----------------
 
 @app.get("/api/consulta/{cpf}")
 async def consultar_cpf(cpf: str, nome_mae: str = Query(...)):
@@ -195,11 +187,7 @@ async def consultar_cpf(cpf: str, nome_mae: str = Query(...)):
     if primeiro_real != primeiro_digitado:
         raise HTTPException(403, "Nome da mãe incorreto")
 
-    # ---------- pega dados cadastrais (do 1º hit) ----------
     base = registros[0].get("_source", {})
-
-    # Telefones e endereço podem estar em qualquer uma das bases;
-    # junta tudo o que achar.
     todos_sources = [h.get("_source", {}) for h in registros]
 
     endereco = ""
@@ -209,9 +197,6 @@ async def consultar_cpf(cpf: str, nome_mae: str = Query(...)):
             break
 
     telefones = extrair_telefones(*todos_sources)
-
-    # data no formato 'YYYY-MM-DD' (sem hora/Z), para não
-    # deslocar 1 dia no frontend por causa de fuso horário.
     data_nasc = normalizar_data_iso(base.get("dt_nascimento_usuario"))
 
     return {
@@ -223,21 +208,28 @@ async def consultar_cpf(cpf: str, nome_mae: str = Query(...)):
         "telefones": telefones or ["Não informado"],
     }
 
-# ---------- Registrar resposta do cidadão ----------
-from pydantic import BaseModel
-from sqlalchemy import select, desc
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
-from db import get_db
-from models import RespostaCadastro
+
+# ---------------- Registrar resposta do cidadão (com email) ----------------
 
 class RespostaIn(BaseModel):
     nome: str
+    cpf: Optional[str] = None
     cadastro_correto: bool = False
     precisa_atualizar: bool = False
 
+
 @app.post("/api/respostas")
-async def salvar_resposta(body: RespostaIn, db: AsyncSession = Depends(get_db)):
+async def salvar_resposta(
+    body: RespostaIn,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    print(
+        f"[RESPOSTA] Recebido: nome={body.nome!r} cpf={body.cpf!r} "
+        f"correto={body.cadastro_correto} atualizar={body.precisa_atualizar}",
+        flush=True,
+    )
+
     if not body.cadastro_correto and not body.precisa_atualizar:
         raise HTTPException(400, "Marque uma das opções")
     if body.cadastro_correto and body.precisa_atualizar:
@@ -251,6 +243,16 @@ async def salvar_resposta(body: RespostaIn, db: AsyncSession = Depends(get_db)):
     db.add(nova)
     await db.commit()
     await db.refresh(nova)
+
+    # Se "precisa atualizar", dispara email em background
+    if body.precisa_atualizar:
+        print(f"[RESPOSTA] Agendando email para {body.nome}", flush=True)
+        background_tasks.add_task(
+            enviar_email_atualizacao,
+            body.nome,
+            body.cpf or "",
+        )
+
     return {"id": nova.id, "ok": True}
 
 
@@ -269,6 +271,18 @@ async def listar_respostas(db: AsyncSession = Depends(get_db)):
         }
         for r in result.scalars().all()
     ]
+
+
+# ---------------- Rota de teste de email ----------------
+
+@app.get("/api/testar-email")
+async def testar_email(background_tasks: BackgroundTasks):
+    background_tasks.add_task(
+        enviar_email_atualizacao,
+        "PACIENTE DE TESTE",
+        "12345678901",
+    )
+    return {"ok": True, "msg": "Email em background. Confira o log do uvicorn."}
 
 
 # ---------------- Health check ----------------

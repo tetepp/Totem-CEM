@@ -21,10 +21,6 @@ const formatarCPF = (v) => {
   return out;
 };
 
-/**
- * Mascara o CPF mostrando APENAS os 3 primeiros dígitos e os 2 últimos.
- * Exemplo: "12345678901" -> "123.***.***-01"
- */
 const mascararCPF = (v) => {
   const limpo = apenasDigitos(v);
   if (limpo.length !== 11) return formatarCPF(v);
@@ -294,13 +290,11 @@ export default function App() {
 
   /* ============================================================
      REGISTRA A RESPOSTA DO CIDADÃO NO BANCO
-     tipo: 'correto'   -> cadastro_correto = true
-           'atualizar' -> precisa_atualizar = true
-     Se a API falhar, o cidadão segue mesmo assim (não trava).
      ============================================================ */
   const registrarResposta = async (tipo) => {
     const payload = {
       nome: dados?.nome || 'Não informado',
+      cpf: dados?.cpf || '',
       cadastro_correto: tipo === 'correto',
       precisa_atualizar: tipo === 'atualizar',
     };
@@ -313,6 +307,102 @@ export default function App() {
 
     setTela(tipo === 'correto' ? 'tudo-ok' : 'precisa-atualizar');
   };
+
+  /* ============================================================
+     TECLADO FÍSICO — escuta global por tela
+     ============================================================ */
+  useEffect(() => {
+    if (tela !== 'welcome' && tela !== 'cpf' && tela !== 'mae') return;
+
+    const handleKeyDown = (e) => {
+      // Deixa inputs/textarea nativos cuidarem (ex: campo do captcha)
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      const k = e.key;
+
+      // ---------------- WELCOME ----------------
+      if (tela === 'welcome') {
+        if (k === 'Enter') {
+          e.preventDefault();
+          setTela('cpf');
+        }
+        return;
+      }
+
+      // ---------------- CPF + CAPTCHA ----------------
+      if (tela === 'cpf') {
+        if (k === 'Backspace') {
+          e.preventDefault();
+          // apaga primeiro o captcha (se tiver conteúdo), depois o CPF
+          if (captchaDigitado.length > 0) apagarCaptcha();
+          else if (cpf.length > 0) apagarNumero();
+          return;
+        }
+
+        if (k === 'Enter') {
+          e.preventDefault();
+          if (cpf.length === 11) confirmarCPF();
+          return;
+        }
+
+        // dígitos: vão pro CPF enquanto não completa, depois pro captcha
+        if (/^[0-9]$/.test(k)) {
+          e.preventDefault();
+          if (cpf.length < 11) {
+            setCampoAtivo('cpf');
+            teclarNumero(k);
+          } else if (captchaDigitado.length < 6) {
+            setCampoAtivo('captcha');
+            teclarCaptcha(k);
+          }
+          return;
+        }
+
+        // letras: vão pro captcha (só depois que o CPF está completo)
+        if (/^[a-zA-ZÇç]$/.test(k)) {
+          if (cpf.length === 11) {
+            e.preventDefault();
+            setCampoAtivo('captcha');
+            teclarCaptcha(k.toUpperCase());
+          }
+          return;
+        }
+
+        return;
+      }
+
+      // ---------------- NOME DA MÃE ----------------
+      if (tela === 'mae') {
+        if (k === 'Backspace') {
+          e.preventDefault();
+          apagarLetra();
+          return;
+        }
+
+        if (k === 'Enter') {
+          e.preventDefault();
+          if (nomeMae.trim()) confirmarMae();
+          return;
+        }
+
+        if (k === ' ') {
+          e.preventDefault();
+          teclarLetra(' ');
+          return;
+        }
+
+        if (/^[a-zA-ZÇç]$/.test(k)) {
+          e.preventDefault();
+          teclarLetra(k.toUpperCase());
+        }
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [tela, cpf, captchaDigitado, captchaGerado, nomeMae]);
 
   return (
     <div className="totem-atualiza">
@@ -370,7 +460,7 @@ export default function App() {
               <img src={logoPrefeitura} alt="Prefeitura" />
             </div>
             <h2 className="tela-titulo">Informe seu CPF</h2>
-            <p className="tela-sub">Utilize o teclado na tela para digitar os dados abaixo.</p>
+            <p className="tela-sub">Utilize o teclado na tela (ou o teclado físico) para digitar os dados abaixo.</p>
 
             <div
               className={`cpf-display ${cpf ? 'preenchido' : ''} ${campoAtivo === 'cpf' ? 'campo-ativo' : ''}`}
@@ -610,7 +700,7 @@ export default function App() {
             </div>
             <h2 className="tela-titulo">Atualização Necessária</h2>
             <div className="aviso-dirija">
-              DIRIJA-SE À: <strong>RECEPÇÃO</strong> 
+              DIRIJA-SE À: <strong>RECEPÇÃO</strong>
             </div>
             <p className="tela-sub">
               Apresente seu documento com foto.
