@@ -2,8 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 import logoPrefeitura from './img/logo-prefeitura.png'
-import Login from './pages/Login'
-import AdminApp from './pages/AdminApp'
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
 
@@ -140,9 +138,9 @@ const IconeCracha = () => (
 );
 
 /* ============================================================
-   TOTEM (kiosk — tela que o cidadão usa)
+   TOTEM (kiosk)
    ============================================================ */
-function TotemApp() {
+export default function App() {
   const [tela, setTela] = useState('welcome');
   const [cpf, setCpf] = useState('');
   const [nomeMae, setNomeMae] = useState('');
@@ -159,8 +157,6 @@ function TotemApp() {
   const [captchaDigitado, setCaptchaDigitado] = useState('');
 
   // ---- CAMPO ATIVO (decide qual teclado mostrar) ----
-  // 'cpf'     -> teclado numérico
-  // 'captcha' -> teclado alfanumérico
   const [campoAtivo, setCampoAtivo] = useState('cpf');
 
   const gerarCaptcha = () => {
@@ -196,14 +192,13 @@ function TotemApp() {
     return () => clearInterval(int);
   }, [tela]);
 
-  // ---- Quando CPF completa, muda automaticamente para o captcha ----
   useEffect(() => {
     if (cpf.length === 11) {
       setCampoAtivo('captcha');
     }
   }, [cpf]);
 
-  // ---- Teclado numérico (CPF) ----
+  /* ---- Teclado numérico (CPF) ---- */
   const teclarNumero = (n) => {
     if (cpf.length >= 11) return;
     setErro('');
@@ -211,7 +206,7 @@ function TotemApp() {
   };
   const apagarNumero = () => setCpf(prev => prev.slice(0, -1));
 
-  // ---- Teclado alfanumérico (captcha) ----
+  /* ---- Teclado alfanumérico (captcha) ---- */
   const teclarCaptcha = (c) => {
     if (captchaDigitado.length >= 6) return;
     setErro('');
@@ -219,7 +214,7 @@ function TotemApp() {
   };
   const apagarCaptcha = () => setCaptchaDigitado(prev => prev.slice(0, -1));
 
-  // ---- Teclado da mãe (letras) ----
+  /* ---- Teclado da mãe (letras) ---- */
   const teclarLetra = (l) => {
     setErro('');
     setNomeMae(prev => (prev + l).slice(0, 30));
@@ -297,6 +292,28 @@ function TotemApp() {
     }
   };
 
+  /* ============================================================
+     REGISTRA A RESPOSTA DO CIDADÃO NO BANCO
+     tipo: 'correto'   -> cadastro_correto = true
+           'atualizar' -> precisa_atualizar = true
+     Se a API falhar, o cidadão segue mesmo assim (não trava).
+     ============================================================ */
+  const registrarResposta = async (tipo) => {
+    const payload = {
+      nome: dados?.nome || 'Não informado',
+      cadastro_correto: tipo === 'correto',
+      precisa_atualizar: tipo === 'atualizar',
+    };
+
+    try {
+      await axios.post(`${API_BASE_URL}/respostas`, payload, { timeout: 8000 });
+    } catch (e) {
+      console.error('[resposta] Falha ao registrar no banco:', e?.response?.data || e.message);
+    }
+
+    setTela(tipo === 'correto' ? 'tudo-ok' : 'precisa-atualizar');
+  };
+
   return (
     <div className="totem-atualiza">
       {tela !== 'welcome' && tela !== 'cpf' && tela !== 'mae' && (
@@ -355,7 +372,6 @@ function TotemApp() {
             <h2 className="tela-titulo">Informe seu CPF</h2>
             <p className="tela-sub">Utilize o teclado na tela para digitar os dados abaixo.</p>
 
-            {/* --- DISPLAY CPF (clicável: reativa teclado numérico) --- */}
             <div
               className={`cpf-display ${cpf ? 'preenchido' : ''} ${campoAtivo === 'cpf' ? 'campo-ativo' : ''}`}
               onClick={() => setCampoAtivo('cpf')}
@@ -366,14 +382,13 @@ function TotemApp() {
               {cpf ? formatarCPF(cpf) : '000.000.000-00'}
             </div>
 
-            {/* --- CAPTCHA (só aparece quando CPF completo) --- */}
             {cpf.length === 11 && (
               <div
                 className={`captcha-totem-container ${campoAtivo === 'captcha' ? 'campo-ativo' : ''}`}
                 onClick={() => setCampoAtivo('captcha')}
               >
                 <div className="captcha-totem-header">
-                  <span> Verificação de segurança</span>
+                  <span>Verificação de segurança</span>
                 </div>
                 <div className="captcha-totem-row">
                   <div className="captcha-totem-display">{captchaGerado}</div>
@@ -405,9 +420,7 @@ function TotemApp() {
 
             {erro && <div className="totem-erro">{erro}</div>}
 
-            {/* --- TECLADO CONDICIONAL --- */}
             {campoAtivo === 'cpf' ? (
-              /* ===== TECLADO NUMÉRICO (CPF) ===== */
               <div className="teclado-numerico">
                 {[1,2,3,4,5,6,7,8,9].map(n => (
                   <button key={n} className="tecla" onClick={() => teclarNumero(String(n))}>{n}</button>
@@ -419,7 +432,6 @@ function TotemApp() {
                 </button>
               </div>
             ) : (
-              /* ===== TECLADO ALFANUMÉRICO (CAPTCHA) ===== */
               <div className="teclado-captcha">
                 <div className="teclado-captcha-linha">
                   {['Q','W','E','R','T','Y','U','I','O','P'].map(l => (
@@ -529,7 +541,7 @@ function TotemApp() {
               <div className="progresso-barra">
                 <div className="progresso-preenchida" style={{ width: `${progresso}%` }} />
               </div>
-              <div className="progresso-status">🔄 Sincronizando com a base municipal...</div>
+              <div className="progresso-status">Sincronizando com a base municipal...</div>
             </div>
 
             <div className="sistemas-lista">
@@ -576,10 +588,10 @@ function TotemApp() {
             </div>
 
             <div className="linha-botoes">
-              <button className="btn-secundario" onClick={() => setTela('tudo-ok')}>
+              <button className="btn-secundario" onClick={() => registrarResposta('correto')}>
                 Meu cadastro está correto
               </button>
-              <button className="btn-primario" onClick={() => setTela('precisa-atualizar')}>
+              <button className="btn-primario" onClick={() => registrarResposta('atualizar')}>
                 Preciso atualizar
               </button>
             </div>
@@ -598,7 +610,7 @@ function TotemApp() {
             </div>
             <h2 className="tela-titulo">Atualização Necessária</h2>
             <div className="aviso-dirija">
-              DIRIJA-SE À: <strong>Sala de Atualização</strong> (Sala X)
+              DIRIJA-SE À: <strong>RECEPÇÃO</strong> 
             </div>
             <p className="tela-sub">
               Apresente seu documento com foto.
@@ -620,53 +632,13 @@ function TotemApp() {
             <button className="btn-secundario" onClick={irParaWelcome}>Voltar ao início</button>
           </div>
         )}
-        <BotaoAdmin />
       </main>
     </div>
   );
 }
 
 /* ============================================================
-   APP ROOT — decide entre kiosk e painel admin
-   ============================================================ */
-export default function App() {
-  const modoAdmin = new URLSearchParams(window.location.search).get('modo') === 'admin';
-
-  const [authUser, setAuthUser] = useState(() => {
-    try {
-      const raw = localStorage.getItem('auth_user');
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  if (modoAdmin) {
-    const temToken = !!localStorage.getItem('auth_token');
-    if (!authUser || !temToken) {
-      return (
-        <Login
-          onLogin={(data) => setAuthUser(data)}
-        />
-      );
-    }
-    return (
-      <AdminApp
-        user={authUser}
-        onLogout={() => {
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('auth_user');
-          setAuthUser(null);
-        }}
-      />
-    );
-  }
-
-  return <TotemApp />;
-}
-
-/* ============================================================
-   SUBCOMPONENTES DO TOTEM
+   SUBCOMPONENTES
    ============================================================ */
 function SistemaItem({ nome, status }) {
   return (
@@ -712,53 +684,5 @@ function VerificacaoCard({ titulo, itens, icone }) {
         ))}
       </ul>
     </div>
-  );
-}
-
-function BotaoAdmin() {
-  const abrir = () => {
-    window.location.href = '/?modo=admin';
-  };
-
-  return (
-    <button
-      onClick={abrir}
-      aria-label="Acesso administrativo"
-      title=""
-      style={{
-        position: 'fixed',
-        bottom: 16,
-        right: 16,
-        width: 40,
-        height: 40,
-        border: 'none',
-        background: 'transparent',
-        color: '#999',
-        opacity: 0.15,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-        transition: 'opacity 0.2s',
-        padding: 0,
-      }}
-      onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
-      onMouseLeave={e => e.currentTarget.style.opacity = '0.15'}
-    >
-      <svg
-        width="22"
-        height="22"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-      </svg>
-    </button>
   );
 }

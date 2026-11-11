@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from unicodedata import normalize
 from contextlib import asynccontextmanager
 
-from usuarios_routes import router as usuarios_router
 from db import init_db
 
 import os
@@ -50,10 +49,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Registra as rotas de usuários (login, CRUD, troca de senha, logs)
-app.include_router(usuarios_router)
-
 
 # ---------------- Helpers ----------------
 
@@ -227,6 +222,53 @@ async def consultar_cpf(cpf: str, nome_mae: str = Query(...)):
         "endereco_completo": endereco or "Endereço não informado",
         "telefones": telefones or ["Não informado"],
     }
+
+# ---------- Registrar resposta do cidadão ----------
+from pydantic import BaseModel
+from sqlalchemy import select, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import Depends
+from db import get_db
+from models import RespostaCadastro
+
+class RespostaIn(BaseModel):
+    nome: str
+    cadastro_correto: bool = False
+    precisa_atualizar: bool = False
+
+@app.post("/api/respostas")
+async def salvar_resposta(body: RespostaIn, db: AsyncSession = Depends(get_db)):
+    if not body.cadastro_correto and not body.precisa_atualizar:
+        raise HTTPException(400, "Marque uma das opções")
+    if body.cadastro_correto and body.precisa_atualizar:
+        raise HTTPException(400, "Só pode marcar uma das opções")
+
+    nova = RespostaCadastro(
+        nome_paciente=body.nome,
+        cadastro_correto=body.cadastro_correto,
+        precisa_atualizar=body.precisa_atualizar,
+    )
+    db.add(nova)
+    await db.commit()
+    await db.refresh(nova)
+    return {"id": nova.id, "ok": True}
+
+
+@app.get("/api/respostas")
+async def listar_respostas(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(RespostaCadastro).order_by(desc(RespostaCadastro.id)).limit(1000)
+    )
+    return [
+        {
+            "id": r.id,
+            "nome_paciente": r.nome_paciente,
+            "cadastro_correto": r.cadastro_correto,
+            "precisa_atualizar": r.precisa_atualizar,
+            "data_hora": r.data_hora.isoformat() if r.data_hora else None,
+        }
+        for r in result.scalars().all()
+    ]
 
 
 # ---------------- Health check ----------------
