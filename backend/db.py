@@ -1,4 +1,10 @@
+
 import os
+from dotenv import load_dotenv
+
+# Carrega as variáveis do arquivo .env antes de utilizá-las
+load_dotenv()
+
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker,
@@ -6,12 +12,14 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import DeclarativeBase
 
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
     raise RuntimeError(
-        "A variável DATABASE_URL não foi configurada no Render."
+        "A variável DATABASE_URL não foi configurada."
     )
+
 
 # Utiliza o driver assíncrono asyncpg
 if DATABASE_URL.startswith("postgres://"):
@@ -27,6 +35,7 @@ elif DATABASE_URL.startswith("postgresql+psycopg://"):
         "postgresql+psycopg://", "postgresql+asyncpg://", 1
     )
 
+
 engine = create_async_engine(
     DATABASE_URL,
     echo=False,
@@ -39,12 +48,15 @@ SessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
+
 class Base(DeclarativeBase):
     pass
+
 
 async def get_db():
     async with SessionLocal() as session:
         yield session
+
 
 async def init_db():
     import models
