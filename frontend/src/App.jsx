@@ -3,7 +3,7 @@ import axios from 'axios'
 import './App.css'
 import logoPrefeitura from './img/logo-prefeitura.png'
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
+const API_BASE_URL = '/api';
 
 /* ============================================================
    HELPERS
