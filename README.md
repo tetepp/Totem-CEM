@@ -100,8 +100,6 @@ SMTP_USER=cemtl.cadastro@gmail.com
 SMTP_PASSWORD=senha_de_app_16_caracteres
 EMAIL_DESTINO=cemtl.cadastro@gmail.com
 
-# CORS
-ORIGINS_PERMITIDAS=*
 ```
 
 Testar o backend:
@@ -180,7 +178,6 @@ reinicie o backend.
 | `SMTP_HOST` / `SMTP_PORT` | Servidor SMTP (587 = STARTTLS, 465 = SSL) |
 | `SMTP_USER` / `SMTP_PASSWORD` | Conta **remetente** + senha de app |
 | `EMAIL_DESTINO` | Quem recebe o aviso |
-| `ORIGINS_PERMITIDAS` | Origens CORS (`*` ou domínio específico) |
 
 **`frontend/.env`**
 
